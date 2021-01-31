@@ -1,5 +1,7 @@
 # Måns Andersson 2020
 from dolfin import *
+import time 
+
 import cupy as cp
 import numpy as np 
 import scipy as sp
