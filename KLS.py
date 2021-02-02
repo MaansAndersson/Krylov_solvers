@@ -27,7 +27,7 @@ def linear_solver(A, u, b, solver = 'CG', TOL=1e-9, MaxIt = 10000, timing = Fals
   if solver == 'CG':
     x = fit_CG(Agpu, bGpu, uu, TOL, MaxIt, solver_info).get()
   elif solver == 'Jacobi':
-    x = fit_Jacobi(Agpu, bGpu, dia, TOL, MaxIt).get()
+    x = fit_Jacobi(Agpu, bGpu, dia, TOL, MaxIt, solver_info).get()
   elif solver == 'BCG':
     x = fit_BCG(Agpu, bGpu, uu, TOL, MaxIt, solver_info).get()
   else: # CGNS
@@ -118,7 +118,7 @@ def fit_prec_csrmv(A, b, x, tol, max_iter, solver_info):
     print('   Linear solver failed to converge. Increase max-iter or tol. Current rtol', xp.linalg.norm(r1))
     return x
 
-def fit_Jacobi(A, b, dia, tol, max_iter):
+def fit_Jacobi(A, b, dia, tol, max_iter, solver_info):
   xp = cp.get_array_module(A) 
   x_init = cp.zeros_like(b, dtype=np.float64) 
   #x_1 = 1/D * (b - (A-D)*x_0)
