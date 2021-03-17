@@ -7,7 +7,7 @@ import numpy as np
 import scipy as sp
 from scipy.sparse import csr_matrix
 
-def linear_solver(A, u, b, M = None, solver = 'CG', TOL=1e-9, MaxIt = 10000, timing = False, solver_info = False):
+def linear_solver(A, u, b, solver = 'CG', TOL=1e-9, MaxIt = 10000, timing = False, solver_info = False, M = None):
   if timing:
     start = time.clock()
   mat = as_backend_type(A).mat()
