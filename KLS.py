@@ -7,7 +7,7 @@ import numpy as np
 import scipy as sp
 from scipy.sparse import csr_matrix
 
-def linear_solver(A, u, b, solver = 'CG', TOL=1e-9, MaxIt = 10000, timing = False, solver_info = False):
+def linear_solver(A, u, b, M = None, solver = 'CG', TOL=1e-9, MaxIt = 10000, timing = False, solver_info = False):
   if timing:
     start = time.clock()
   mat = as_backend_type(A).mat()
@@ -33,6 +33,11 @@ def linear_solver(A, u, b, solver = 'CG', TOL=1e-9, MaxIt = 10000, timing = Fals
     x = fit_Jacobi(Agpu, bGpu, uu, dia, TOL, MaxIt, solver_info).get()
   elif solver == 'BCG':
     x = fit_BCG(Agpu, bGpu, uu, TOL, MaxIt, solver_info).get()
+  elif solver == 'CG' and M:
+    mat = as_backend_type(M).mat()
+    mi, mj, mv = mat.getValuesCSR()
+    Mcsr = sp.sparse.csr_matrix((mv, mj, mi))
+    x = fit_CG(Agpu, bGpu, uu, Mcsr, TOL, MaxIt, solver_info).get()
   else: # CGNS
     x = fit_prec_csrmv(Agpu, bGpu, uu, TOL, MaxIt, solver_info).get()
 
@@ -109,6 +114,34 @@ def fit_prec_csrmv(A, b, x, tol, max_iter, solver_info):
         x += a * p
         r1 = r0 - a * A.dot(p)
         z1 = cp.cusparse.csrmv(A,r1, alpha = alpha, beta = beta, transa = True) 
+
+        if cp.linalg.norm(r1) < tol:
+            if solver_info :
+              print('   Linear solver residual norm; ',xp.linalg.norm(r1), 'n of iterations: ', i)
+            return x
+        b = xp.inner(r1, z1) / xp.inner(r0, z0)
+        p = z1 + b * p
+        r0 = r1
+        z0 = z1
+    print('   Linear solver failed to converge. Increase max-iter or tol. Current rtol', xp.linalg.norm(r1))
+    return x
+  
+def fit_prec(A, b, x, M, tol, max_iter, solver_info):
+    xp = cp.get_array_module(A)
+    #x = xp.zeros_like(b, dtype=np.float64) 
+    alpha = 1.
+    beta = 0.
+    
+    r0 = b - A.dot(x)
+    z0 = cp.dot(M, r0)
+    p = z0
+    for i in range(max_iter):
+
+        a = xp.inner(z0, r0) / xp.inner(p, A.dot(p))
+
+        x += a * p
+        r1 = r0 - a * A.dot(p)
+        z1 = cp.dot(M,r1)
 
         if cp.linalg.norm(r1) < tol:
             if solver_info :
